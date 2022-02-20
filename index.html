@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <!-- set styles on the top -->
+    <style>
+        .chart-container {
+            max-width: 1050px;
+            /* border: 2px solid red; */
+            margin: 0 auto;
+            /* auto centers the div */
+            font-family: 'Franklin Gothic Medium', 'Arial Narrow', Arial, sans-serif;
+        }
+
+        svg {
+            /* border: 2px solid purple; */
+            overflow: visible;
+        }
+
+        h1 {
+            margin-left: 30px;
+            margin-bottom: 0;
+            /* border: 2px solid green; */
+        }
+
+        .x .tick line {
+            stroke: rgba(0, 0, 0, .2);
+        }
+
+        .y .tick line {
+            stroke: rgba(0, 0, 0, .2);
+        }
+
+        .x .domain {
+            display: none;
+        }
+
+        .y .domain {
+            display: none;
+        }
+
+        .y .tick text {
+            font-size: 14px;
+            fill: #333;
+
+        }
+
+        .x .tick text {
+            font-size: 14px;
+            fill: #333;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="chart-container">
+        <h1 class="headline">
+            No. 1: Playoff Wins by Age
+        </h1>
+
+        <svg width="1050px" height="1000px">
+
+        </svg>
+    </div>
+</body>
+
+<script src="https://d3js.org/d3.v6.min.js"></script>
+<!-- we're using d3 version 6 (the latest version) for all out work -->
+
+<script>
+    console.log({ d3 })
+
+    let width = 800;
+    let height = 500;
+
+    let svg = d3.select("body")
+        .select("svg")
+
+    console.log(svg)
+
+    d3.csv("cleaned_player_data.csv").then(function (data) {
+
+        data.forEach(function (row) {
+            row.player_name = row.player_name
+            row.year = +row.year
+            row.age = +row.age
+            row.playoff_wins = +row.playoff_wins
+            row.tds = +row.tds
+            row.yards = +row.yards
+            row.pb_games = +row.pb_games
+            row.year_end = +row.year_end
+            row.year_start = +row.year_start
+        })
+
+        console.log({data})
+
+
+        let margin = { top: 30, right: 10, bottom: 10, left: 30 };
+
+        //d3 scales for the x and y axis
+        //domain takes the data we have and maps them into SVG space
+        //in this case we need to use scaleTime because we're dealin time data
+        let x = d3.scaleTime()
+            .domain(d3.extent(data.map(function (d) { return d.age }))) //d3 extent
+            .range([margin.left, width - margin.right])
+
+        //in this case we need to use scaleLinear because we're dealin linear data
+        let y = d3.scaleLinear()
+            .domain(d3.extent(data.map(function (d) { return d.playoff_wins})))
+            .range([height, margin.top])
+
+
+        //define the settings for our axes
+        //https://github.com/d3/d3-axis
+        // https://github.com/d3/d3-time-format
+        //https://github.com/d3/d3-format
+        let yAxisSettings = d3.axisRight(y) //set axis to the left
+            .ticks(5) //approx how many ticks, the function will not necesarily give you that number
+            .tickSize(width) //size of tick lines
+            .tickPadding(10) //distance from tick labels to tick marks
+            
+        let xAxisSettings = d3.axisBottom(x)
+            .ticks(10)
+            .tickSize(10)
+            .tickFormat(d3.format("d"))
+            .tickPadding(10)
+
+        let bg = svg.append("rect")
+            .attr("x", margin.left)
+            .attr("y", 0)
+            .attr("width", width)
+            .attr("height", height)
+            .style("fill", "rgba(0,0,0,0)")
+
+        //adding to the axes to our chart
+        let xAxisTicks = svg.append("g")
+            .attr("class", "x axis") //give each axis a class
+            .call(xAxisSettings)
+            .attr("transform", `translate(0,${height - margin.bottom})`)
+
+        let yAxisTicks = svg.append("g")
+            .attr("class", "y axis")
+            .call(yAxisSettings)
+            .attr("transform", `translate(${margin.left},0)`)
+
+        let line = d3.line() //define a line function
+            .defined(d => !isNaN(d.playoff_wins))
+            .x(function (d) { return x(d.age) }) //accessing date 
+            .y(function (d) { return y(d.playoff_wins) }) //accesssing value 
+
+        let grouped_data = d3.group(data, d => d.player_name); //group according to agency
+        let grouped_season = d3.group(data, d => d.year_end); // group according to last year active
+
+        console.log({grouped_data})
+        console.log({grouped_season})
+
+        let players = Array.from(grouped_data.keys())
+
+        console.log(Array.from(grouped_data.keys()))
+        console.log({players})
+
+/*         const top_players = ["Bart Starr", "Terry Bradshaw", "Joe Montana", "John Elway", "Fran Tarkenton"]
+        console.log({top_players}) */
+
+        let line_path = svg.append("g")
+        .selectAll(".line") //give each line a class
+        .data(grouped_data) //call the grouped data
+        .join("path") //for every element, instruction to express as line
+        .attr("class", function(d) { // actually express as line
+            return "line " +  d[0]
+        })
+        .attr("d", function(d) {
+            return line(d[1])
+        })
+        .style("fill", "none")
+        .style("stroke", d => {
+            if(d[0] == "Tom Brady") {
+                return "skyblue"
+            } else if (d[0] == "Josh Allen" ||
+                        d[0] == "Kyle Allen" ||
+                        d[0] == "Teddy Bridgewater" ||
+                        d[0] == "Jacoby Brissett" ||
+                        d[0] == "Joe Burrow" ||
+                        d[0] == "Derek Carr" ||
+                        d[0] == "Kirk Cousins" ||
+                        d[0] == "Andy Dalton" ||
+                        d[0] == "Sam Darnold" ||
+                        d[0] == "Ryan Fitzpatrick" ||
+                        d[0] == "Joe Flacco" ||
+                        d[0] == "Nick Foles" ||
+                        d[0] == "Blaine Gabbert" ||
+                        d[0] == "Jimmy Garoppolo" ||
+                        d[0] == "Mike Glennon" ||
+                        d[0] == "Jared Goff" ||
+                        d[0] == "Taylor Heinicke" ||
+                        d[0] == "Chad Henne" ||
+                        d[0] == "Justin Herbert" ||
+                        d[0] == "Brian Hoyer" ||
+                        d[0] == "Jalen Hurts" ||
+                        d[0] == "Lamar Jackson" ||
+                        d[0] == "Daniel Jones" ||
+                        d[0] == "Case Keenum" ||
+                        d[0] == "Drew Lock" ||
+                        d[0] == "Patrick Mahomes" ||
+                        d[0] == "Marcus Mariota" ||
+                        d[0] == "Baker Mayfield" ||
+                        d[0] == "Colt McCoy" ||
+                        d[0] == "Gardner Minshew II" ||
+                        d[0] == "Nick Mullens" ||
+                        d[0] == "Kyler Murray" ||
+                        d[0] == "Cam Newton" ||
+                        d[0] == "Dak Prescott" ||
+                        d[0] == "Aaron Rodgers" ||
+                        d[0] == "Ben Roethlisberger" ||
+                        d[0] == "Josh Rosen" ||
+                        d[0] == "Matt Ryan" ||
+                        d[0] == "Trevor Siemian" ||
+                        d[0] == "Geno Smith" ||
+                        d[0] == "Matthew Stafford" ||
+                        d[0] == "Tua Tagovailoa" ||
+                        d[0] == "Ryan Tannehill" ||
+                        d[0] == "Tyrod Taylor" ||
+                        d[0] == "Mitchell Trubisky" ||
+                        d[0] == "Carson Wentz" ||
+                        d[0] == "Russell Wilson" ||
+                        d[0] == "Jameis Winston") {
+                return "skyblue"
+            } else if (d[0] == "Bart Starr" ||
+                        d[0] == "Terry Bradshaw" ||
+                        d[0] == "Joe Montana" ||
+                        d[0] == "John Elway" ||
+                        d[0] == "Fran Tarkenton") {
+                return "black"
+            } else {
+                return "#999"
+            }
+        })
+        .style("stroke-width", d => {
+            if(d[0] == "Tom Brady") {
+                return "3px"
+            } else if (d[0] == "Bart Starr" ||
+                        d[0] == "Terry Bradshaw" ||
+                        d[0] == "Joe Montana" ||
+                        d[0] == "John Elway" ||
+                        d[0] == "Fran Tarkenton") {
+                return "1.5px"
+            } else if (d[0] == "Josh Allen" ||
+                        d[0] == "Kyle Allen" ||
+                        d[0] == "Teddy Bridgewater" ||
+                        d[0] == "Jacoby Brissett" ||
+                        d[0] == "Joe Burrow" ||
+                        d[0] == "Derek Carr" ||
+                        d[0] == "Kirk Cousins" ||
+                        d[0] == "Andy Dalton" ||
+                        d[0] == "Sam Darnold" ||
+                        d[0] == "Ryan Fitzpatrick" ||
+                        d[0] == "Joe Flacco" ||
+                        d[0] == "Nick Foles" ||
+                        d[0] == "Blaine Gabbert" ||
+                        d[0] == "Jimmy Garoppolo" ||
+                        d[0] == "Mike Glennon" ||
+                        d[0] == "Jared Goff" ||
+                        d[0] == "Taylor Heinicke" ||
+                        d[0] == "Chad Henne" ||
+                        d[0] == "Justin Herbert" ||
+                        d[0] == "Brian Hoyer" ||
+                        d[0] == "Jalen Hurts" ||
+                        d[0] == "Lamar Jackson" ||
+                        d[0] == "Daniel Jones" ||
+                        d[0] == "Case Keenum" ||
+                        d[0] == "Drew Lock" ||
+                        d[0] == "Patrick Mahomes" ||
+                        d[0] == "Marcus Mariota" ||
+                        d[0] == "Baker Mayfield" ||
+                        d[0] == "Colt McCoy" ||
+                        d[0] == "Gardner Minshew II" ||
+                        d[0] == "Nick Mullens" ||
+                        d[0] == "Kyler Murray" ||
+                        d[0] == "Cam Newton" ||
+                        d[0] == "Dak Prescott" ||
+                        d[0] == "Aaron Rodgers" ||
+                        d[0] == "Ben Roethlisberger" ||
+                        d[0] == "Josh Rosen" ||
+                        d[0] == "Matt Ryan" ||
+                        d[0] == "Trevor Siemian" ||
+                        d[0] == "Geno Smith" ||
+                        d[0] == "Matthew Stafford" ||
+                        d[0] == "Tua Tagovailoa" ||
+                        d[0] == "Ryan Tannehill" ||
+                        d[0] == "Tyrod Taylor" ||
+                        d[0] == "Mitchell Trubisky" ||
+                        d[0] == "Carson Wentz" ||
+                        d[0] == "Russell Wilson" ||
+                        d[0] == "Jameis Winston") {
+                return "1.5px"
+            } else {
+                return "1px"
+            }
+        })
+
+        let baseline = svg.append("line")
+        .attr("x1", margin.left)
+        .attr("x2", width + margin.left)
+        .attr("y1", y(0))
+        .attr("y2", y(0))
+        .style("stroke", "black")
+        .style("stroke-width", "2px")
+
+        // let last = array[array.length - 1];
+
+        let labels = svg.append("g")
+            .selectAll("text")
+            .data(grouped_data)
+            .join("text")
+            .attr("x", d=> x(d[1][d[1].length - 1].age))
+            .attr("y", d=> y(d[1][d[1].length - 1].playoff_wins))
+            .attr("dx", -5)
+            .attr("dy", -5)
+            .text(d => d[0])
+            .style("fill", d => {
+                if(d[0] == "Tom Brady") {
+                return "skyblue"
+            } else if (d[0] == "Bart Starr" ||
+                        d[0] == "Terry Bradshaw" ||
+                        d[0] == "Joe Montana" ||
+                        d[0] == "John Elway" ||
+                        d[0] == "Fran Tarkenton") {
+                return "black"
+            } else {
+                return "none"
+            }
+            })
+            .style("font-size", d => {
+                if(d[0] == "Tom Brady") {
+                    return "30px"
+                } else if (d[0] == "Bart Starr" ||
+                        d[0] == "Terry Bradshaw" ||
+                        d[0] == "Joe Montana" ||
+                        d[0] == "John Elway" ||
+                        d[0] == "Fran Tarkenton") {
+                    return "12px"
+                }})
+
+
+
+    })
+
+</script>
